@@ -41,14 +41,15 @@ jobs:
         run: |
           url=https://raw.githubusercontent.com/niumoo/bing-wallpaper/refs/heads/main/picture/$(date --date="-1 month" +"%Y-%m")/README.md
           list=$(curl $url | grep 'download 4k' | awk -F '[()]' '{print $4RS$8RS$12}')
+          mkdir wallpaper
           for pic in $list; do
             if (( $(echo $pic | wc -L) > 5 )); then
               fn=$(echo $pic | awk -F '[=&]' '{print $2}')
               echo "downloading $fn ..."
-              curl -o $fn $pic
+              curl -o wallpaper/$fn $pic
             fi
           done
-          tar -zcvf ${{ env.FILENAME }} *.jpg
+          tar -zcvf ${{ env.FILENAME }} wallpaper
 
       - name: Upload WallPaper To Release
         uses: ncipollo/release-action@v1
