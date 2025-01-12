@@ -1,0 +1,59 @@
+name: Download WallPaper
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 0 18 2 * *
+
+env:
+  TZ: Asia/Shanghai
+  FILENAME: wallpaper.tar.gz
+
+jobs:
+  Build:
+    runs-on: ubuntu-24.04
+    if: ${{ github.event.repository.owner.id }} == ${{ github.event.sender.id }}
+
+    steps:
+      - name: Delete older workflow runs and artifacts
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          retain_days: 3
+          keep_minimum_runs: 3
+
+      - name: Checkout
+        uses: actions/checkout@main
+
+      - name: Initialization Environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo -E apt -y update
+          sudo -E apt -y install curl gawk
+          sudo -E apt -y autoremove --purge
+          sudo -E apt -y clean
+          sudo timedatectl set-timezone "$TZ"
+          echo "VERSION=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
+
+      - name: Download
+        run: |
+          url=https://raw.githubusercontent.com/niumoo/bing-wallpaper/refs/heads/main/picture/$(date --date="-1 month" +"%Y-%m")/README.md
+          list=$(curl $url | grep 'download 4k' | awk -F '[()]' '{print $4RS$8RS$12}')
+          for pic in $list; do
+            if (( $(echo $pic | wc -L) > 5 )); then
+              fn=$(echo $pic | awk -F '[=&]' '{print $2}')
+              echo "downloading $fn ..."
+              curl -o $fn $pic
+            fi
+          done
+          tar -zcvf ${{ env.FILENAME }} *.jpg
+
+      - name: Upload WallPaper To Release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          removeArtifacts: true
+          tag: v${{ env.VERSION }}
+          artifacts: ${{ env.FILENAME }}
